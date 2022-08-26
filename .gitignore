@@ -19,3 +19,4 @@ Thumbs.db
 # end
 
 bastion/inventory
+2021Labs/OpenShiftSecurity/spring-boot-angular-ecommerce/target/*
