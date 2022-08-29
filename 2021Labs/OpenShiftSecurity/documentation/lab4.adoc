@@ -69,8 +69,14 @@ API server information for ‘oc login’ can be found in the xref:beforeyoustar
 +
 * Alternatively, if we want to setup oc client on our laptop, perform the following steps:
 +
-** Log in to the OpenShift console. OpenShift console admin user password information is provided by the instructor.
-Select the question mark in the top right corner and select “Command Line Tools”
+** Log in to the OpenShift console. 
++
+----
+https://console-openshift-console.apps.cluster-{GUID}.{GUID}.sandbox###.opentlc.com
+----
+** On OpenShift console use *admin* user and the password information that is provided on the registration information.
+
+** Select the question mark in the top right corner and select “Command Line Tools”
 +
 image:images/lab4-devsecops03.png[200,200]
 +
