@@ -390,11 +390,11 @@ image:images/lab4-devsecops43.png[700,300]
 +
 image:images/lab4-devsecops44.png[300,700]
 +
-.. Click image:images/lab4-devsecops45.png[20,20] on the top left → click Platform Configuration → select Policies
+.. Click image:images/lab4-devsecops45.png[20,20] on the top left → click Platform Configuration → select Policy Management
 +
 image:images/lab4-devsecops46.png[100,200]
 +
-.. Under Policies, put the policy name *Fixable Severity at least Important* in the search field and hit Enter. The policy will list as the result.
+.. In the Filter policies search box, type *Policy:* which will allow you to search for policy name and then type *Fixable Severity at least Important* and press Enter. The policy will list as the result.
 +
 image:images/lab4-devsecops47.png[300,700]
 +
