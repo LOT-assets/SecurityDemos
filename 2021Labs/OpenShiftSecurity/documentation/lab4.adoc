@@ -543,6 +543,44 @@ image:images/lab4-devsecops96b.png[300,700]
 +
 
 
+=== Lab 4.5 ACS Security Policies and CI Violations
+
+In this demo, we can control the security policies applied to our pipelines, scan the images, and analyze the different deployment templates used to deploy our applications. +
+We can enforce the different Security Policies in ACS, failing our CI pipelines if a violation of this policy appears in each step of our DevSecOps pipelines (steps “image-check”, “image-scan”, “deploy-check”).
+
+* Click on the `waffle icon` and select `Red Hat Advanced Cluster Security for Kubernetes`
++
+image:images/lab4-devsecops43.png[300,300]
++
+* Log in using credentials `admin/stackrox` to ACS console.
++
+image:images/lab4-devsecops82.png[300,700]
++
+* Click `Platform Configuration` → `Policies`
++
+image:images/lab4-devsecops83.png[200,200]
++
+Security Policies can be defined at the BUILD (during the build/push of an image), or at the DEPLOYMENT level (controlling deployment of an application).
+* Click on the `Red Hat Package manager in Image` policy
++
+image:images/lab4-devsecops84.png[300,700]
++
+For example, this Security Policy checks if an RH Package Manager (dnf, yum) present in an application Image and will FAIL the pipeline if it detects that an Image built contains any RH Package Manager.
+* The policy details can be modified. Also, the lifecycle stages are defined in the policy and other properties. The enablement of Policy options is where the user controls CI pass/fail conditions based on policy
++
+image:images/lab4-devsecops85.png[300,700]
++
+* Click `Actions` -> `Edit policy`
+* Click `Next` on `Policy Details`
+* Select `Inform and enforce` under Response method
+* Select `Enforce on Build` for Build
++
+image:images/lab4-devsecops87.png[300,700]
++
+* Click `Next` 3 times and `Save`
+This policy enforcement ensures that DevOps team has full control of SDLC: no image is pushed into the Image registry or deployed to the cluster that fails to comply with defined Security Policies.
+
+
 === Bonus Lab: ACS Notifications
 
 ACS Central can be integrated with several Notifiers for alerting DevOps users when certain security events occur in managed clusters. In our Lab, we integrate with Slack to receive notifications when some Policies are violated to have more useful information:
@@ -702,42 +740,6 @@ image:images/lab4-devsecops80.png[200,400]
 image:images/lab4-devsecops81.png[400,700]
 
 
-=== Lab 4.5 ACS Security Policies and CI Violations
-
-In this demo, we can control the security policies applied to our pipelines, scan the images, and analyze the different deployment templates used to deploy our applications. +
-We can enforce the different Security Policies in ACS, failing our CI pipelines if a violation of this policy appears in each step of our DevSecOps pipelines (steps “image-check”, “image-scan”, “deploy-check”).
-
-* Click on the `waffle icon` and select `Red Hat Advanced Cluster Security for Kubernetes`
-+
-image:images/lab4-devsecops43.png[300,300]
-+
-* Log in using credentials `admin/stackrox` to ACS console.
-+
-image:images/lab4-devsecops82.png[300,700]
-+
-* Click `Platform Configuration` → `Policies`
-+
-image:images/lab4-devsecops83.png[200,200]
-+
-Security Policies can be defined at the BUILD (during the build/push of an image), or at the DEPLOYMENT level (controlling deployment of an application).
-* Click on the `Red Hat Package manager in Image` policy
-+
-image:images/lab4-devsecops84.png[300,700]
-+
-For example, this Security Policy checks if an RH Package Manager (dnf, yum) present in an application Image and will FAIL the pipeline if it detects that an Image built contains any RH Package Manager.
-* The policy details can be modified. Also, the lifecycle stages are defined in the policy and other properties. The enablement of Policy options is where the user controls CI pass/fail conditions based on policy
-+
-image:images/lab4-devsecops85.png[300,700]
-+
-* Click `Actions` -> `Edit policy`
-* Click `Next` on `Policy Details`
-* Select `Inform and enforce` under Response method
-* Select `Enforce on Build` for Build
-+
-image:images/lab4-devsecops87.png[300,700]
-+
-* Click `Next` 3 times and `Save`
-This policy enforcement ensures that DevOps team has full control of SDLC: no image is pushed into the Image registry or deployed to the cluster that fails to comply with defined Security Policies.
 
 === Lab Troubleshooting Tips
 
