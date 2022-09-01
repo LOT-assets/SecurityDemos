@@ -361,7 +361,7 @@ image:images/lab4-devsecops41.png[400,700]
 +
 . If *image-check* fails, go to the pipeline run and click `image-check`. The bottom of the log shows `Error: failed policies found: 1 policy violated that are failing the check.` The reason for the error is because ACS enforces the policy from building and deploying if a violation occurs. The pipeline integrates ACS via the `roxctl` CLI in Tekton pipeline tasks.
 +
-When an image violates the policies, the best practice is to fix the code and execute the pipeline until it passes the checks. The logs reported the list of violations and remediation. Developers can take the information from the `image-check` task’s log and make changes accordingly. When the fix is checked into Git, the pipeline will be triggered. We have prepared the xref:fiximage[bonus exercise for fixing the image]. If we would like to continue to test other tasks on the pipeline, we can add an exception to the policy to exclude the `spring-petclinic`.
+When an image violates the policies, the best practice is to fix the code and execute the pipeline until it passes the checks. The logs reported the list of violations and remediation. Developers can take the information from the `image-check` task’s log and make changes accordingly. When the fix is checked into Git, the pipeline will be triggered. We have prepared a xref:fiximage[lab for fixing the image]. If we would like to continue to test other tasks on the pipeline, we can add an exception to the policy to exclude the `spring-petclinic`.
 Adding an exception to a policy can be useful when developers need to fix the code, and the CI process needs to continue the testing.
 +
 [Note] Please be aware that fixing the image source code to remove such violations will be the recommended approach.
@@ -441,13 +441,139 @@ image:images/lab4-devsecops55.png[300,700]
 +
 image:images/lab4-devsecops55a.png[300,700]
 +
-.. If you finish the xref:fiximage[bonus lab] to fix the source image vulnerability, go back to the above Policy and remove the excluded `spring-petclinic` image from there.
+.. If you finish the xref:fiximage[lab] to fix the source image vulnerability, go back to the above Policy and remove the excluded `spring-petclinic` image from there.
 .. Kubernetes kustomization files are updated in the *update deployment step* with the latest image [commit-sha] in the overlays for dev. This will ensure that our applications are deployed using the specific built/tagged image in this pipeline.
 +
 image:images/lab4-devsecops56.png[300,700]
 
 
-=== Lab 4.3 Continuous Application Delivery Using GitOps
+
+[#fiximage]
+=== Lab 4.3: Fixing the source image
+
+To show a complete DevSecOps demo and show the transition from a "bad image" to one that passes the Build security policy check, we can update the Pipeline task of the image build and fix the image source.
+In this example, we will be enabling the `Red Hat Package Manager in Image` policy in ACS, which will initially fail our pipeline at the image-check as both yum and rpm package managers are present in our base image.
+
+. Add an exception to bypass the violation in the *Fixable Severity at least Important* policy as we did in the previous section.
+. Enable enforcement of the *Red Hat Package Manager in Image* policy:
+.. Go to `Platform Configuration` → `Policies`
+.. Search for `Red Hat Package Manager in Image` policy
++
+image:images/lab4-devsecops88.png[300,700]
++
+.. Click onto the `Red Hat Package Manager in Image` policy
+.. Click `Actions` -> `Edit Policy`
+.. Click `Next`
+.. Select `Inform and enforce` in Response method
+.. Ensure selection of `Enforce on Build` in Build under `Configure enforcement behavior` section
++
+image:images/lab4-devsecops87.png[300,600]
++
+.. Click `Next` until reaching `Review policy` page
+.. Click `Save` (if any modification apply)
+.. Go to the OpenShift Dev UI, click Pipelines on the left → click `petclinic-build-dev` pipeline → click `Actions` on the top right corner → select `Start last run` to re-run pipeline with same parameters
++
+image:images/lab4-devsecops91.png[300,700]
++
+.. Check and confirm that pipeline fails on the *image-check* step as the built image has the "rpm" and "yum" package managers installed. Notice the suggestion from the *image-check* step:
++
+image:images/lab4-devsecops92.png[300,700]
++
+.. We will effectively update the image following this remediation suggestion.
+. Instead of updating the `s2i-java-11` Tekton pipeline task that actually builds the image, we are replacing it with a corrected version.
+.. From the OpenShift Administrator UI, make sure the `ocp-workshop` project is selected before going to Pipelines -> Tasks and delete the `s2i-java-11` task.
++
+image:images/lab4-devsecops93.png[300,700]
++
+.. Or from the pipeline Tekton cli
++
+|===
+|oc project ocp-workshop
+|tkn task delete s2i-java-11
+|===
++
+. Apply the new update task from the command terminal:
++
+|===
+|kubectl apply -f https://raw.githubusercontent.com/RedHatDemos/SecurityDemos/master/2021Labs/OpenShiftSecurity/documentation/labs-artifacts/s2ijava-mgr.yaml --namespace=ocp-workshop
+|or, using OpenShift CLI:
+|oc apply -f https://raw.githubusercontent.com/RedHatDemos/SecurityDemos/master/2021Labs/OpenShiftSecurity/documentation/labs-artifacts/s2ijava-mgr.yaml  -n ocp-workshop
+|===
++
+..Observe the confirmation of task creation:
+..task.tekton.dev/s2i-java-11 created
+
+. Re-run the pipeline that previously failed - the deployment now succeeds, congratulations to the developers!
+. The pipeline  *image-check* task run result will be similar to the one below.
++
+image:images/lab4-bonus-result.png[300,700]
++
+[Note] Please examine the contents of https://raw.githubusercontent.com/RedHatDemos/SecurityDemos/master/2021Labs/OpenShiftSecurity/documentation/labs-artifacts/s2ijava-mgr.yaml[*labs-artifacts/s2ijava-mgr.yaml]*** **file for more details on how the image was fixed.
+We have added a step to the build task, using https://buildah.io/[buildah] CLI tool to remove the problematic package managers from the image (search for "rpm" or "yum" in the file).
++
+image:images/lab4-devsecops94.png[300,700]
++
+
+
+=== Lab 4.4 Defer CVEs or Mark as "False Positive"
+
+If we just want to `snooze` policy violations for particular CVEs instead of fixing problematic images and/or adding exceptions for build/deploy stages (e.g. to be able to test a pipeline end-to-end). ACS allows users to temporarily disable CVEs violation for a period of time.
+
+[Note] Deferring CVEs would disable violation notifications for those CVE for ALL policies that include it.
+
+For this lab, we can defer the CVEs that cause the image-check to fail and continue to build the pipeline. We will see that *image-check* task is reporting some Fixable violations information from the pipeline task log:
+
+image:images/lab4-devsecops95.png[300,700]
+
+In some situations, we may want to defer triggering of certain CVEs for a period of time. Here are the steps:
+
+. Navigate to the ACS console via the `waffle icon` and click on the `Red Hat Advanced Clustered Security for Kubernetes` link.
+Click Vulnerability Management left menu and click on the CVEs button  on the top.
+. Look for the detected CVEs and request Deferral by selecting the duration needed (Until Fixable, 2 Weeks, 30 Days, 90 Days, Indefinite).
++
+image:images/lab4-devsecops96_new.png[300,700]
++
+.. Submit a request for selected Deferral period or marking as `False positive` (exclusion of specified CVEs from policy violations if determined as such)
++
+image:images/lab4-devsecops96a.png[200,500]
++
+.. Upon approval by your Security lead (via Risk Acceptance menu), policy violations for selected CVE  will be deferred for selected period of time or permanently, depending on request
++
+image:images/lab4-devsecops96b.png[300,700]
++
+
+
+=== Bonus Lab: ACS Notifications
+
+ACS Central can be integrated with several Notifiers for alerting DevOps users when certain security events occur in managed clusters. In our Lab, we integrate with Slack to receive notifications when some Policies are violated to have more useful information:
+
+image:images/lab4-devsecops97.png[300,500]
+
+These policy notifications can be configured for each system policy enabled in our ACS Central, so we can create our own notification baselines in order to have only the proper information received in our systems. +
+Here are the steps to set up slack integration with ACS based on the official https://docs.openshift.com/acs/3.70/integration/integrate-with-slack.html/[Integrate with Slack] documentation in ACS.
+
+. Create a Slack App, enable Incoming Webhooks and get the Webhook URL using instruction https://docs.openshift.com/acs/3.70/integration/integrate-with-slack.html#configure-slack_integrate-with-slack[here]
++
+image:images/lab4-slack.png[300,500]
++
+. Select `Platform Configuration` -> `Integration`
++
+image:images/lab4-devsecops98.png[100,300]
++
+. Click `Slack` and Click `New integration`
+. Enter Slack App channel information in the form below.
++
+image:images/lab4-slack-int.png[100,300]
++
+. Enable the Notifications in the system policies: Select `Platform Configuration` -> `Policies`
+.. Select a Policy -> Click `Actions` -> `Edit policy`
+.. Select checkbox next to `Slack Notifier` in the Attach Notifiers section of Policy details screen, click `Next` a few times and Save policy.
+.. You should be getting notifications when this policy violation is triggered
++
+image:images/lab4-devsecops99.png[300,700]
+
+
+=== Bonus Lab: Continuous Application Delivery Using GitOps
 
 https://www.redhat.com/en/topics/devops/what-is-gitops[GitOps] is a declarative way to implement continuous deployment for Cloud-native applications. We can use GitOps to create repeatable processes for managing OpenShift Container Platform clusters and applications across multi-cluster Kubernetes environments. GitOps handles and automates complex deployments at a fast pace, saving time during deployment and release cycles. +
 The GitOps workflow pushes an application through development, testing, staging, and production. GitOps either deploys a new application or updates an existing one, so we only need to update the repository; GitOps automates everything else.
@@ -512,7 +638,7 @@ image:images/lab4-devsecops66.png[300,300]
 +
 image:images/lab4-devsecops67.png[300,500]
 
-=== Lab 4.4 Post CI - Dynamic Application Security and Testing (DAST)
+=== Bonus Lab: Post CI - Dynamic Application Security and Testing (DAST)
 
 *Dynamic application security testing (DAST)* is designed to detect conditions indicative of a security vulnerability in an application in its running state. DAST has an important role in helping to identify vulnerabilities in applications during production. Running DAST penetration tests enables us to find those vulnerabilities before an attacker does!
 In this lab, ZAP is used to perform application security testing as an example. Performance tests and penetration tests start in parallel after the application is promoted from Dev to QA.
@@ -613,131 +739,6 @@ image:images/lab4-devsecops87.png[300,700]
 * Click `Next` 3 times and `Save`
 This policy enforcement ensures that DevOps team has full control of SDLC: no image is pushed into the Image registry or deployed to the cluster that fails to comply with defined Security Policies.
 
-
-[#fiximage]
-=== Bonus Exercise for Lab 4.2: Fixing the source image
-
-To show a complete DevSecOps demo and show the transition from a "bad image" to one that passes the Build security policy check, we can update the Pipeline task of the image build and fix the image source.
-In this example, we will be enabling the `Red Hat Package Manager in Image` policy in ACS, which will initially fail our pipeline at the image-check as both yum and rpm package managers are present in our base image.
-
-. Add an exception to bypass the violation in the *Fixable Severity at least Important* policy as we did in the previous section.
-. Enable enforcement of the *Red Hat Package Manager in Image* policy:
-.. Go to `Platform Configuration` → `Policies`
-.. Search for `Red Hat Package Manager in Image` policy
-+
-image:images/lab4-devsecops88.png[300,700]
-+
-.. Click onto the `Red Hat Package Manager in Image` policy
-.. Click `Actions` -> `Edit Policy`
-.. Click `Next`
-.. Select `Inform and enforce` in Response method
-.. Ensure selection of `Enforce on Build` in Build under `Configure enforcement behavior` section
-+
-image:images/lab4-devsecops87.png[300,600]
-+
-.. Click `Next` until reaching `Review policy` page
-.. Click `Save` (if any modification apply)
-.. Go to the OpenShift Dev UI, click Pipelines on the left → click `petclinic-build-dev` pipeline → click `Actions` on the top right corner → select `Start last run` to re-run pipeline with same parameters
-+
-image:images/lab4-devsecops91.png[300,700]
-+
-.. Check and confirm that pipeline fails on the *image-check* step as the built image has the "rpm" and "yum" package managers installed. Notice the suggestion from the *image-check* step:
-+
-image:images/lab4-devsecops92.png[300,700]
-+
-.. We will effectively update the image following this remediation suggestion.
-. Instead of updating the `s2i-java-11` Tekton pipeline task that actually builds the image, we are replacing it with a corrected version.
-.. From the OpenShift Administrator UI, make sure the `ocp-workshop` project is selected before going to Pipelines -> Tasks and delete the `s2i-java-11` task.
-+
-image:images/lab4-devsecops93.png[300,700]
-+
-.. Or from the pipeline Tekton cli
-+
-|===
-|oc project ocp-workshop
-|tkn task delete s2i-java-11
-|===
-+
-. Apply the new update task from the command terminal:
-+
-|===
-|kubectl apply -f https://raw.githubusercontent.com/RedHatDemos/SecurityDemos/master/2021Labs/OpenShiftSecurity/documentation/labs-artifacts/s2ijava-mgr.yaml --namespace=ocp-workshop
-|or, using OpenShift CLI:
-|oc apply -f https://raw.githubusercontent.com/RedHatDemos/SecurityDemos/master/2021Labs/OpenShiftSecurity/documentation/labs-artifacts/s2ijava-mgr.yaml  -n ocp-workshop
-|===
-+
-..Observe the confirmation of task creation:
-..task.tekton.dev/s2i-java-11 created
-
-. Re-run the pipeline that previously failed - the deployment now succeeds, congratulations to the developers!
-. The pipeline  *image-check* task run result will be similar to the one below.
-+
-image:images/lab4-bonus-result.png[300,700]
-+
-[Note] Please examine the contents of https://raw.githubusercontent.com/RedHatDemos/SecurityDemos/master/2021Labs/OpenShiftSecurity/documentation/labs-artifacts/s2ijava-mgr.yaml[*labs-artifacts/s2ijava-mgr.yaml]*** **file for more details on how the image was fixed.
-We have added a step to the build task, using https://buildah.io/[buildah] CLI tool to remove the problematic package managers from the image (search for "rpm" or "yum" in the file).
-+
-image:images/lab4-devsecops94.png[300,700]
-+
-
-
-=== Bonus Exercise: Defer CVEs or Mark as "False Positive"
-
-If we just want to `snooze` policy violations for particular CVEs instead of fixing problematic images and/or adding exceptions for build/deploy stages (e.g. to be able to test a pipeline end-to-end). ACS allows users to temporarily disable CVEs violation for a period of time.
-
-[Note] Deferring CVEs would disable violation notifications for those CVE for ALL policies that include it.
-
-For this lab, we can defer the CVEs that cause the image-check to fail and continue to build the pipeline. We will see that *image-check* task is reporting some Fixable violations information from the pipeline task log:
-
-image:images/lab4-devsecops95.png[300,700]
-
-In some situations, we may want to defer triggering of certain CVEs for a period of time. Here are the steps:
-
-. Navigate to the ACS console via the `waffle icon` and click on the `Red Hat Advanced Clustered Security for Kubernetes` link.
-Click Vulnerability Management left menu and click on the CVEs button  on the top.
-. Look for the detected CVEs and request Deferral by selecting the duration needed (Until Fixable, 2 Weeks, 30 Days, 90 Days, Indefinite).
-+
-image:images/lab4-devsecops96_new.png[300,700]
-+
-.. Submit a request for selected Deferral period or marking as `False positive` (exclusion of specified CVEs from policy violations if determined as such)
-+
-image:images/lab4-devsecops96a.png[200,500]
-+
-.. Upon approval by your Security lead (via Risk Acceptance menu), policy violations for selected CVE  will be deferred for selected period of time or permanently, depending on request
-+
-image:images/lab4-devsecops96b.png[300,700]
-+
-
-
-=== Bonus Exercise: ACS Notifications
-
-ACS Central can be integrated with several Notifiers for alerting DevOps users when certain security events occur in managed clusters. In our Lab, we integrate with Slack to receive notifications when some Policies are violated to have more useful information:
-
-image:images/lab4-devsecops97.png[300,500]
-
-These policy notifications can be configured for each system policy enabled in our ACS Central, so we can create our own notification baselines in order to have only the proper information received in our systems. +
-Here are the steps to set up slack integration with ACS based on the official https://docs.openshift.com/acs/3.70/integration/integrate-with-slack.html/[Integrate with Slack] documentation in ACS.
-
-. Create a Slack App, enable Incoming Webhooks and get the Webhook URL using instruction https://docs.openshift.com/acs/3.70/integration/integrate-with-slack.html#configure-slack_integrate-with-slack[here]
-+
-image:images/lab4-slack.png[300,500]
-+
-. Select `Platform Configuration` -> `Integration`
-+
-image:images/lab4-devsecops98.png[100,300]
-+
-. Click `Slack` and Click `New integration`
-. Enter Slack App channel information in the form below.
-+
-image:images/lab4-slack-int.png[100,300]
-+
-. Enable the Notifications in the system policies: Select `Platform Configuration` -> `Policies`
-.. Select a Policy -> Click `Actions` -> `Edit policy`
-.. Select checkbox next to `Slack Notifier` in the Attach Notifiers section of Policy details screen, click `Next` a few times and Save policy.
-.. You should be getting notifications when this policy violation is triggered
-+
-image:images/lab4-devsecops99.png[300,700]
-
 === Lab Troubleshooting Tips
 
 ====  Failure uploading the zap proxy report into the upload server
@@ -781,3 +782,5 @@ Dload Upload Total Spent Left Speed
 ----
 
 image:images/lab4-devsecops100.png[300,700]
+
+
